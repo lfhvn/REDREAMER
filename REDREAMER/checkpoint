@@ -1,0 +1,2 @@
+model_checkpoint_path: "save-dreams"
+all_model_checkpoint_paths: "save-dreams"
