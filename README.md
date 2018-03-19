@@ -1,8 +1,8 @@
 # REDREAMER
 Dream Generating Recurrent Neural Network Experiment
 
-This is based on the [Udacity TV Script Generation project](https://github.com/udacity/deep-learning/tree/master/tv-script-generation) for the [Deep Learning Nanodegree](https://www.udacity.com/course/deep-learning-nanodegree--nd101). 
-I've deleted the instructions and made some significant revisions in the code. 
+This code is based on the my version of the [TV Script Generation project](https://github.com/udacity/deep-learning/tree/master/tv-script-generation) written for the [Udacity Deep Learning Nanodegree](https://www.udacity.com/course/deep-learning-nanodegree--nd101). 
+I've deleted the instructions and made some revisions to the code used for the course.
 The unit tests are still present as of this first commit but I intend to remove and simplify the notebook.
 
 You'll have to add your own data. Any .txt file will work. 
