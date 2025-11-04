@@ -1,0 +1,69 @@
+# REDREAMER 2025 - Modern Dependencies
+# Updated for Python 3.11+ and latest AI/ML libraries (November 2025)
+
+# Core Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# HuggingFace Ecosystem
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+peft>=0.7.0  # Parameter-Efficient Fine-Tuning (LoRA, etc.)
+tokenizers>=0.15.0
+
+# Efficient Training
+bitsandbytes>=0.41.0  # 8-bit/4-bit quantization
+sentencepiece>=0.1.99  # Tokenization
+protobuf>=4.24.0
+
+# Experiment Tracking & Visualization
+wandb>=0.16.0  # Weights & Biases
+tensorboard>=2.15.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Data Processing
+pandas>=2.1.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Jupyter & Notebooks
+jupyter>=1.0.0
+ipywidgets>=8.1.0
+ipykernel>=6.25.0
+nbconvert>=7.9.0
+
+# Web Interfaces & Deployment
+gradio>=4.0.0  # Quick web UI
+streamlit>=1.28.0  # Alternative UI framework
+fastapi>=0.104.0  # REST API
+uvicorn>=0.24.0  # ASGI server
+pydantic>=2.5.0  # Data validation
+
+# Utilities
+tqdm>=4.66.0  # Progress bars
+python-dotenv>=1.0.0  # Environment variables
+requests>=2.31.0
+beautifulsoup4>=4.12.0  # Web scraping (if needed)
+
+# Text Processing
+nltk>=3.8.0
+spacy>=3.7.0
+
+# Optional: Advanced Features
+# sentence-transformers>=2.2.0  # For embeddings
+# einops>=0.7.0  # Tensor operations
+# safetensors>=0.4.0  # Safe model serialization
+# flash-attn>=2.0.0  # Flash Attention (if compatible GPU)
+
+# Development Tools
+black>=23.10.0  # Code formatting
+pytest>=7.4.0  # Testing
+pytest-cov>=4.1.0  # Coverage
+mypy>=1.6.0  # Type checking
+
+# Documentation
+sphinx>=7.2.0
+sphinx-rtd-theme>=1.3.0
