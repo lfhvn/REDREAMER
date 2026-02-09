@@ -8,15 +8,23 @@ Usage:
     python redreamer_video.py --prompt "I was flying" --backend runway --api-key YOUR_KEY
 """
 
+import os
 import torch
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 import argparse
 import sys
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 class DreamVideoGenerator:
     """Generate dream text and optionally create videos"""
+
+    # Allowed API hosts for video download to prevent SSRF
+    ALLOWED_API_HOSTS = frozenset({
+        "api.runwayml.com",
+        "api.lumalabs.ai",
+    })
 
     def __init__(self, text_model="gpt2-medium", video_backend=None, api_key=None):
         """
@@ -25,10 +33,19 @@ class DreamVideoGenerator:
         Args:
             text_model: Model for text generation ("gpt2-medium", "gpt2", etc.)
             video_backend: None, "local", "runway", "luma", "api_placeholder"
-            api_key: API key for commercial services
+            api_key: API key for commercial services (prefer env vars over CLI args)
         """
         self.video_backend = video_backend
-        self.api_key = api_key
+
+        # Resolve API key: explicit arg > environment variable
+        if api_key:
+            self.api_key = api_key
+        elif video_backend == "runway":
+            self.api_key = os.environ.get("RUNWAY_API_KEY")
+        elif video_backend == "luma":
+            self.api_key = os.environ.get("LUMA_API_KEY")
+        else:
+            self.api_key = None
 
         print(f"Loading text generation model: {text_model}")
         self.text_generator = pipeline(
@@ -40,7 +57,7 @@ class DreamVideoGenerator:
         if video_backend == "local":
             self._init_local_video_models()
         elif video_backend in ["runway", "luma"]:
-            if not api_key:
+            if not self.api_key:
                 print(f"Warning: No API key provided for {video_backend}")
 
     def _init_local_video_models(self):
@@ -72,6 +89,9 @@ class DreamVideoGenerator:
             print("This requires a CUDA-capable GPU with 16GB+ VRAM")
             sys.exit(1)
 
+    MAX_PROMPT_LENGTH = 2000
+    MAX_OUTPUT_TOKENS = 2000
+
     def generate_dream_text(self, prompt, style="surreal", length=200):
         """
         Generate dream narrative text
@@ -84,6 +104,9 @@ class DreamVideoGenerator:
         Returns:
             Generated dream text
         """
+        if len(prompt) > self.MAX_PROMPT_LENGTH:
+            raise ValueError(f"Prompt too long ({len(prompt)} chars). Max: {self.MAX_PROMPT_LENGTH}")
+        length = min(length, self.MAX_OUTPUT_TOKENS)
         style_configs = {
             "realistic": {
                 "temperature": 0.7,
@@ -222,6 +245,17 @@ class DreamVideoGenerator:
 
         return output_path
 
+    def _validate_download_url(self, url):
+        """Validate that a download URL uses HTTPS and points to an allowed host."""
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError(f"Refusing non-HTTPS download URL: {url}")
+        if parsed.hostname not in self.ALLOWED_API_HOSTS:
+            raise ValueError(
+                f"Download URL host '{parsed.hostname}' not in allowed list: "
+                f"{', '.join(sorted(self.ALLOWED_API_HOSTS))}"
+            )
+
     def generate_video_api(self, scene_prompt, backend, output_path="scene.mp4"):
         """
         Generate video using commercial API
@@ -258,13 +292,15 @@ class DreamVideoGenerator:
         response = requests.post(url, headers=headers, json=payload, timeout=180)
 
         if response.status_code != 200:
-            raise Exception(f"API error: {response.text}")
+            raise RuntimeError(f"API error ({response.status_code}): {response.text[:500]}")
 
-        # Download video
+        # Download video with URL validation
         video_url = response.json().get("video_url")
         if video_url:
+            self._validate_download_url(video_url)
             print(f"  Downloading video...")
-            video_response = requests.get(video_url, stream=True)
+            video_response = requests.get(video_url, stream=True, timeout=300)
+            video_response.raise_for_status()
             with open(output_path, 'wb') as f:
                 for chunk in video_response.iter_content(chunk_size=8192):
                     f.write(chunk)
@@ -407,7 +443,8 @@ Examples:
     parser.add_argument("--backend", choices=["local", "runway", "luma"],
                         help="Video generation backend (optional)")
     parser.add_argument("--api-key", type=str,
-                        help="API key for commercial video services")
+                        help="API key for commercial video services "
+                             "(prefer RUNWAY_API_KEY or LUMA_API_KEY env vars)")
     parser.add_argument("--output", type=str, default="output",
                         help="Output directory (default: output)")
     parser.add_argument("--model", type=str, default="gpt2-medium",
@@ -415,9 +452,14 @@ Examples:
 
     args = parser.parse_args()
 
-    # Validate
-    if args.backend in ["runway", "luma"] and not args.api_key:
-        parser.error(f"--api-key required for {args.backend} backend")
+    # Validate: check CLI arg, then env var
+    if args.backend in ["runway", "luma"]:
+        env_var = "RUNWAY_API_KEY" if args.backend == "runway" else "LUMA_API_KEY"
+        if not args.api_key and not os.environ.get(env_var):
+            parser.error(
+                f"API key required for {args.backend} backend. "
+                f"Set {env_var} env var or pass --api-key"
+            )
 
     # Initialize generator
     try:

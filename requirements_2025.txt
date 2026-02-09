@@ -52,10 +52,12 @@ beautifulsoup4>=4.12.0  # Web scraping (if needed)
 nltk>=3.8.0
 spacy>=3.7.0
 
+# Safe Serialization (replaces pickle for model weights)
+safetensors>=0.4.0
+
 # Optional: Advanced Features
 # sentence-transformers>=2.2.0  # For embeddings
 # einops>=0.7.0  # Tensor operations
-# safetensors>=0.4.0  # Safe model serialization
 # flash-attn>=2.0.0  # Flash Attention (if compatible GPU)
 
 # Development Tools

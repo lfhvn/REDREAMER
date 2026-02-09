@@ -6,6 +6,7 @@ Uses: gpt-oss-20b + Wan 2.2 / HunyuanVideo
 The actual state-of-the-art for local dream generation (November 2025)
 """
 
+import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import argparse
@@ -13,10 +14,17 @@ import sys
 from pathlib import Path
 import re
 
+# Trusted model repositories that are allowed to use trust_remote_code
+TRUSTED_MODEL_SOURCES = frozenset({
+    "openai/gpt-oss-20b",
+    "Qwen/Qwen2.5-7B-Instruct",
+})
+
 class LatestDreamGenerator:
     """Dream generator using 2025 SOTA models"""
 
-    def __init__(self, text_backend="gpt-oss", video_backend="wan2.2", use_ollama=False):
+    def __init__(self, text_backend="gpt-oss", video_backend="wan2.2", use_ollama=False,
+                 trust_remote_code=False):
         """
         Initialize with latest models
 
@@ -24,9 +32,11 @@ class LatestDreamGenerator:
             text_backend: "gpt-oss" (20B) or "qwen2.5" (7B-72B)
             video_backend: "wan2.2", "hunyuan", "mochi", "ltx", or None
             use_ollama: Use Ollama for text generation (easier setup)
+            trust_remote_code: Allow executing code from model repos (only for trusted sources)
         """
         self.video_backend = video_backend
         self.use_ollama = use_ollama
+        self.trust_remote_code = trust_remote_code
 
         # Initialize text generation
         if use_ollama:
@@ -75,19 +85,25 @@ class LatestDreamGenerator:
             else:
                 model_id = model  # Custom model path
 
+            # Only allow trust_remote_code for explicitly trusted model sources
+            allow_remote = self.trust_remote_code and model_id in TRUSTED_MODEL_SOURCES
+            if self.trust_remote_code and model_id not in TRUSTED_MODEL_SOURCES:
+                print(f"Warning: trust_remote_code ignored for untrusted model '{model_id}'")
+                print(f"  Trusted sources: {', '.join(sorted(TRUSTED_MODEL_SOURCES))}")
+
             self.text_model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 device_map="auto",
                 torch_dtype=torch.float16,
-                trust_remote_code=True
+                trust_remote_code=allow_remote
             )
 
             self.text_tokenizer = AutoTokenizer.from_pretrained(
                 model_id,
-                trust_remote_code=True
+                trust_remote_code=allow_remote
             )
 
-            print(f"✅ {model_id} loaded")
+            print(f"Loaded {model_id}")
 
         except Exception as e:
             print(f"❌ Error loading model: {e}")
@@ -152,6 +168,9 @@ class LatestDreamGenerator:
             print("Try: wan2.2, hunyuan, or install from GitHub")
             self.video_pipe = None
 
+    MAX_PROMPT_LENGTH = 2000
+    MAX_OUTPUT_TOKENS = 2000
+
     def generate_dream_text(self, prompt, style="surreal", length=300):
         """
         Generate dream narrative
@@ -164,6 +183,9 @@ class LatestDreamGenerator:
         Returns:
             Generated dream text
         """
+        if len(prompt) > self.MAX_PROMPT_LENGTH:
+            raise ValueError(f"Prompt too long ({len(prompt)} chars). Max: {self.MAX_PROMPT_LENGTH}")
+        length = min(length, self.MAX_OUTPUT_TOKENS)
         style_configs = {
             "realistic": {
                 "description": "realistic and grounded",
@@ -435,6 +457,8 @@ Setup:
                         help="Video generation backend (optional)")
     parser.add_argument("--use-ollama", action="store_true",
                         help="Use Ollama for text generation (recommended)")
+    parser.add_argument("--trust-remote-code", action="store_true",
+                        help="Allow executing code from model repos (only for trusted sources)")
     parser.add_argument("--output", type=str, default="output",
                         help="Output directory")
 
@@ -450,7 +474,8 @@ Setup:
         generator = LatestDreamGenerator(
             text_backend=args.text_model,
             video_backend=args.video,
-            use_ollama=args.use_ollama
+            use_ollama=args.use_ollama,
+            trust_remote_code=args.trust_remote_code
         )
 
     except Exception as e:
